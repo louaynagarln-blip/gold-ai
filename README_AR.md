@@ -14,3 +14,8 @@
 
 محرك Python القديم ونتائج إصدار 0.3 محفوظة كعمل منفصل في المستودع، ولا يعمل بها Android الحالي:
 [توثيق الإصدار السابق](docs/README_0_3_AR.md) — [نتائج اختبار الإصدار السابق](docs/TEST_REPORT_AR.md).
+
+آخر بناء ناجح للإصدار 0.4 مع اختبارات Accessibility على Android10 وAndroid15:
+https://github.com/louaynagarln-blip/gold-ai/actions/runs/39172244840
+
+تفاصيل النتائج وحدود الوظائف في [تقرير التحكم بالشاشة](docs/SCREEN_CONTROL_AR.md).
