@@ -94,9 +94,8 @@ class ScreenService : AccessibilityService() {
    lastCapture=System.currentTimeMillis()
    val before=awaitingSignature
    if(before!=null && report.getString("signature")!=before) {
-    awaitingSignature=null;pendingToken=null
-    prefs.edit().remove("pending").apply()
-    result("SCREEN_CHANGED","تغيّر الشاشة مرصود. هذا ليس تأكيد نجاح صفقة لدى الوسيط")
+    awaitingSignature=null
+    result("SCREEN_CHANGED","تغيّر الشاشة مرصود، لكنه ليس تأكيد صفقة. راجع النتيجة بنفسك قبل أي إجراء آخر")
    }
    val task=queued
    if(monitoring && task!=null) { queued=null;task() }

@@ -39,13 +39,17 @@ class ScreenServiceTest : ActivityInstrumentationTestCase2<ScreenFixtureActivity
   waitFor("ACTION_SET_TEXT did not update local fixture") {
    var value="";instrumentation.runOnMainSync { value=screen.findViewById<EditText>(R.id.fixture_volume).text.toString() };value=="0.02"
   }
-  waitFor("Text change not observed") { prefs.getString("pending",null)==null && shot().toString().contains("0.02") }
+  waitFor("Text change not observed") { prefs.getString("state",null)=="SCREEN_CHANGED" && shot().toString().contains("0.02") }
+  assertNotNull("Screen changes must not confirm a broker transaction",prefs.getString("pending",null))
+  instrumentation.runOnMainSync { ScreenService.instance!!.reviewed();ScreenService.instance!!.start() }
   val next=shot()
   instrumentation.runOnMainSync { assertTrue(ScreenService.instance!!.queue(next,index(next,"fixture_apply"),"click")) }
   waitFor("ACTION_CLICK did not update local fixture") {
    var value="";instrumentation.runOnMainSync { value=screen.findViewById<TextView>(R.id.fixture_result).text.toString() };value=="APPLIED: 0.02"
   }
-  waitFor("Click effect not observed") { prefs.getString("pending",null)==null }
+  waitFor("Click effect not observed") { prefs.getString("state",null)=="SCREEN_CHANGED" }
+  assertNotNull("Click must remain unconfirmed until manual review",prefs.getString("pending",null))
+  instrumentation.runOnMainSync { ScreenService.instance!!.reviewed() }
   instrumentation.runOnMainSync {
    ScreenService.instance!!.stop()
    assertFalse(ScreenService.instance!!.queue(shot(),index(shot(),"fixture_apply"),"click"))
