@@ -147,6 +147,7 @@ class ScreenService : AccessibilityService() {
    c?.raw?.forEach { it.recycle() }
   }
   result("QUEUED","إجراء واحد قيد الانتظار. افتح التطبيق المختار؛ أي اختلاف في الشاشة يمنعه")
+  main.post(observe)
   main.postDelayed({ if(queued!=null) { queued=null;result("BLOCKED","انتهت مهلة الانتظار دون إرسال الإجراء") } },10000)
   return true
  }
