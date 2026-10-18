@@ -34,7 +34,7 @@ class MainActivity : Activity() {
   label("تحكم عبر الشاشة • لا يحتاج خادم MT5",18f)
   label("مرحلة معايرة الواجهة — التداول الآلي غير مكتمل",16f,Color.rgb(255,190,100))
   status=label("خدمة الشاشة غير متصلة",18f)
-  button("اختيار تطبيق FxPro المثبّت") { chooseApp() }
+  button("اختيار FxPro / MT5 المثبّت") { chooseApp() }
   button("إعدادات صلاحية Accessibility") {
    AlertDialog.Builder(this).setTitle("صلاحية قراءة الشاشة والتحكم")
     .setMessage("الخدمة تقرأ عناصر التطبيق الذي تختاره وتستطيع الضغط والكتابة فيه. قد تحتوي الشاشة على معلومات حسابك. لا تُرسل البيانات إلى خادم، ولا تُقرأ حقول كلمات المرور. راجع اسم التطبيق قبل منح الصلاحية.")
@@ -68,8 +68,8 @@ class MainActivity : Activity() {
  private fun alert(value:String) { AlertDialog.Builder(this).setMessage(value).setPositiveButton("حسناً",null).show() }
  private fun chooseApp() {
   val apps=packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER),0)
-   .filter { it.loadLabel(packageManager).toString().contains("fxpro",true) }
-  if(apps.isEmpty()) { alert("لم يُعثر على تطبيق باسم FxPro ضمن التطبيقات المثبّتة");return }
+   .filter { app -> val name=app.loadLabel(packageManager).toString(); listOf("fxpro","metatrader","mt5","mt4","ctrader","ميتاتريدر").any { name.contains(it,true) } }
+  if(apps.isEmpty()) { alert("لم يُعثر على FxPro أو MetaTrader ضمن التطبيقات المثبّتة");return }
   AlertDialog.Builder(this).setTitle("اختر تطبيق التداول المقصود")
    .setItems(apps.map { "${it.loadLabel(packageManager)}\n${it.activityInfo.packageName}" }.toTypedArray()) { _,index ->
     ScreenService.instance?.stop()
