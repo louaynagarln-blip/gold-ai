@@ -26,7 +26,7 @@ class FakeMT5:
         if self.switched and self.calls%2==0: return NS(**{**vars(self.account),'trade_mode':2})
         return self.account
     def symbol_select(self,*a): return True
-    def symbol_info(self,*a): return NS(trade_stops_level=1,point=.01,trade_tick_size=.01,volume_min=self.minimum,volume_max=10,volume_step=.01)
+    def symbol_info(self,*a): return NS(currency_base='XAU',currency_profit='USD',trade_stops_level=1,point=.01,trade_tick_size=.01,volume_min=self.minimum,volume_max=10,volume_step=.01)
     def symbol_info_tick(self,*a): return NS(bid=100,ask=100+self.spread,time_msc=time.time()*1000-self.age)
     def positions_get(self): return self.pos
     def orders_get(self): return self.pending
@@ -95,6 +95,19 @@ class RuntimeTests(unittest.TestCase):
     def test_spread(self):
         self.fake.spread=2
         self.assertIn('Spread',self.runtime.poll()['reason'])
+    def test_stale_snapshot_cannot_start(self):
+        self.runtime.poll();self.runtime.state['timestamp_ms']=1
+        with self.assertRaises(ValueError): self.runtime.start_simulation()
+    def test_remaining_daily_budget(self):
+        self.fake.deals=[NS(type=0,profit=-1.9,commission=0,swap=0,fee=0)]
+        self.runtime.config=replace(Config(),costs_confirmed=True,risk_usd=5)
+        self.assertIsNone(self.runtime.poll()['plan'])
+    def test_non_gold_symbol(self):
+        original=self.fake.symbol_info
+        def wrong(*a):
+            spec=original(*a);spec.currency_base='EUR';return spec
+        self.fake.symbol_info=wrong
+        self.assertEqual(self.runtime.poll()['mode'],'FAULT')
     def test_stop(self):
         self.runtime.poll();self.runtime.start_simulation();self.runtime.stop()
         self.assertEqual(self.runtime.poll()['mode'],'STOPPED')
@@ -115,7 +128,7 @@ class RuntimeTests(unittest.TestCase):
         self.runtime.config=replace(Config(),costs_confirmed=True)
         self.assertIn('Minimum lot',self.runtime.poll()['reason'])
     def test_candidate_deduplicated(self):
-        self.runtime.config=replace(Config(),costs_confirmed=True,risk_usd=5)
+        self.runtime.config=replace(Config(),costs_confirmed=True,risk_usd=5,daily_loss_usd=10)
         self.runtime.poll();self.runtime.start_simulation()
         for _ in range(10): self.runtime.poll()
         count=self.runtime.db.execute("SELECT COUNT(*) FROM events WHERE kind='DRY_RUN_CANDIDATE'").fetchone()[0]

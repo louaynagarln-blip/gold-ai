@@ -87,7 +87,13 @@ class MainActivity : Activity() {
         label("سجل القرارات والتنبيهات", 20f)
         events = label("لا توجد قرارات من خادم موثوق بعد", 14f)
         label("عند مغادرة التطبيق تتوقف المحاكاة. الخادم يتوقف أيضاً بعد 10 ثوانٍ دون نبض. يلزم MT5 على خادم دائم للربط؛ لا توجد صلاحية Accessibility مطلوبة في هذه البنية.", 14f)
-        setContentView(ScrollView(this).apply { addView(layout) })
+        setContentView(ScrollView(this).apply {
+            addView(this@MainActivity.layout)
+            setOnApplyWindowInsetsListener { view, insets ->
+                view.setPadding(0,insets.systemWindowInsetTop,0,insets.systemWindowInsetBottom)
+                insets
+            }
+        })
     }
     private fun label(value: String, size: Float, color: Int = Color.rgb(224,231,241)): TextView {
         return TextView(this).apply {
@@ -170,7 +176,7 @@ class MainActivity : Activity() {
         active=verified && data.optString("mode")=="DRY_RUN"
         run.isEnabled=verified && data.optString("mode")!="FAULT"
         run.text=if(active) "إيقاف المحاكاة" else "تشغيل محاكاة على بيانات Demo"
-        status.text="${data.optString("mode")} • Demo: ${if(verified) "متحقق من الطرفية" else "غير متحقق أو بيانات قديمة"}\n${data.optString("reason")}"
+        status.text="${data.optString("mode")} • ${data.opt("account")}\nDemo: ${if(verified) "متحقق من الطرفية" else "غير متحقق أو بيانات قديمة"}\n${data.optString("reason")}"
         val metrics=data.optJSONObject("metrics") ?: JSONObject()
         details.text=if(fresh) "السعر: ${data.opt("price")}\nالإشارة: ${data.optString("signal","WAIT")}\nالربح المحقق اليوم: ${data.opt("pnl")} USD\nالصفقات: ${data.optJSONArray("positions")}\nالأوامر: ${data.optJSONArray("orders")}\nالخطة المحاكية: ${data.opt("plan")}\nعمر السعر: ${metrics.opt("tick_age_ms")} ms\nزمن التحليل: ${metrics.opt("decision_ms")} ms\nتأكيد التنفيذ: لم يُقَس — مقفل" else "بيانات قديمة أو مفقودة — لا تعتمد عليها"
         val rows=data.optJSONArray("events")

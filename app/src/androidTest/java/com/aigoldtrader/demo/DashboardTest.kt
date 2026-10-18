@@ -1,13 +1,40 @@
 package com.aigoldtrader.demo
 import android.test.ActivityInstrumentationTestCase2
+import android.view.View
+import android.view.ViewGroup
+import android.widget.Button
+import android.widget.TextView
 @Suppress("DEPRECATION")
 class DashboardTest : ActivityInstrumentationTestCase2<MainActivity>(MainActivity::class.java) {
+ private fun widgets(view: View): List<View> = listOf(view) +
+  if(view is ViewGroup) (0 until view.childCount).flatMap { widgets(view.getChildAt(it)) } else emptyList()
  fun testColdStartLockedAndRtl() {
   val screen=activity
   assertNotNull(screen)
   assertFalse(SafetyPolicy.BROKER_EXECUTION_ENABLED)
   instrumentation.runOnMainSync {
-   assertEquals(android.view.View.LAYOUT_DIRECTION_RTL,screen.window.decorView.layoutDirection)
+   assertEquals(View.LAYOUT_DIRECTION_RTL,screen.window.decorView.layoutDirection)
+   val run=widgets(screen.window.decorView).filterIsInstance<Button>().first { it.text.toString().contains("تشغيل محاكاة") }
+   assertFalse(run.isEnabled)
+  }
+ }
+ fun testEmergencyStopWorksOffline() {
+  val screen=activity
+  instrumentation.runOnMainSync {
+   val views=widgets(screen.window.decorView)
+   views.filterIsInstance<Button>().first { it.text.toString().contains("STOP") }.performClick()
+   assertTrue(views.filterIsInstance<TextView>().any { it.text.toString().contains("توقف محلياً") })
+   assertFalse(views.filterIsInstance<Button>().first { it.text.toString().contains("تشغيل محاكاة") }.isEnabled)
+  }
+ }
+ fun testResumeCannotEnableTrading() {
+  val screen=activity
+  instrumentation.runOnMainSync {
+   instrumentation.callActivityOnPause(screen)
+   instrumentation.callActivityOnResume(screen)
+   val run=widgets(screen.window.decorView).filterIsInstance<Button>().first { it.text.toString().contains("تشغيل محاكاة") }
+   assertFalse(run.isEnabled)
+   assertFalse(SafetyPolicy.BROKER_EXECUTION_ENABLED)
   }
  }
 }

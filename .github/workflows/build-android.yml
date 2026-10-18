@@ -52,6 +52,9 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
 
   android-ui:
+    strategy:
+      matrix:
+        api: [29, 35]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -71,7 +74,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 29
+          api-level: ${{ matrix.api }}
           arch: x86_64
           disable-animations: true
           script: |
@@ -83,7 +86,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: android-device-test-results
+          name: android-device-test-results-${{ matrix.api }}
           path: |
             app/build/reports/androidTests
             app/build/outputs/androidTest-results

@@ -1,5 +1,7 @@
 plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
 android {
+ useLibrary("android.test.runner")
+ useLibrary("android.test.base")
  namespace = "com.aigoldtrader.demo"
  compileSdk = 35
  defaultConfig {

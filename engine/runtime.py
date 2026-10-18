@@ -44,7 +44,8 @@ class Runtime:
     def start_simulation(self):
         with self.lock:
             # start never authorizes real/Demo broker execution
-            if not self.state['demo_verified'] or self.state['mode']=='FAULT':
+            if (not self.state['demo_verified'] or self.state['mode']=='FAULT' or
+                    not 0 <= time.time()*1000-self.state['timestamp_ms'] <= 5000):
                 raise ValueError('verified Demo and healthy snapshot required')
             self.lease=time.monotonic()+10
             self.stopped.clear()
@@ -82,7 +83,7 @@ class Runtime:
         self.stopped.set()
         with self.lock:
             self.state.update(mode='FAULT',demo_verified=False,signal='WAIT',price=None,pnl=None,
-                              positions=[],orders=[],plan=None,indicators=None,reason=reason,timestamp_ms=int(time.time()*1000))
+                              positions=[],orders=[],plan=None,indicators=None,account=None,reason=reason,timestamp_ms=int(time.time()*1000))
             self.log('FAULT',{'reason':reason})
 
     def poll(self):
@@ -108,6 +109,8 @@ class Runtime:
         spec,tick=m.symbol_info(self.symbol),m.symbol_info_tick(self.symbol)
         if not spec or not tick:
             raise ValueError('Missing broker specification or tick')
+        if spec.currency_base != 'XAU' or spec.currency_profit != 'USD':
+            raise ValueError('Configured symbol is not verified XAU/USD')
         now=time.time()
         age=now*1000-tick.time_msc
         c=self.config
@@ -155,7 +158,7 @@ class Runtime:
         elif decision['signal']!='WAIT':
             buy=decision['signal']=='BUY'
             price=tick.ask if buy else tick.bid
-            distance=max(decision['atr']*c.stop_atr,spec.trade_stops_level*spec.point)
+            distance=max(decision['atr']*c.stop_atr,spec.trade_stops_level*spec.point+tick.ask-tick.bid)
             if not math.isfinite(distance) or distance<=0 or spec.trade_tick_size<=0:
                 raise ValueError('Invalid stop distance / tick size')
             from decimal import Decimal, ROUND_FLOOR, ROUND_CEILING
@@ -170,7 +173,8 @@ class Runtime:
             loss=m.order_calc_profit(action,self.symbol,1.0,price+c.slippage if buy else price-c.slippage,sl)
             if loss is None or not math.isfinite(loss) or loss>=0:
                 raise ValueError('Cannot calculate broker stop loss')
-            lots=lot_for_risk(c.risk_usd,-loss,spec.volume_min,spec.volume_max,spec.volume_step,c.commission_per_lot)
+            remaining=c.daily_loss_usd-gross_loss-max(0,-account.profit)
+            lots=lot_for_risk(min(c.risk_usd,remaining),-loss,spec.volume_min,spec.volume_max,spec.volume_step,c.commission_per_lot)
             if lots is None:
                 reason='Minimum lot exceeds risk budget'
             else:
@@ -185,7 +189,8 @@ class Runtime:
             reason='Controller heartbeat expired; stopped safely'
         with self.lock:
             mode='STOPPED' if self.stopped.is_set() else 'DRY_RUN'
-            self.state.update(mode=mode,demo_verified=True,price={'bid':tick.bid,'ask':tick.ask},
+            self.state.update(mode=mode,demo_verified=True,account={'login':account.login,'server':account.server,
+                'company':account.company,'currency':account.currency,'trade_mode':account.trade_mode},price={'bid':tick.bid,'ask':tick.ask},
                 signal=decision['signal'],indicators=decision,pnl=pnl,daily_gross_loss=gross_loss,
                 positions=[p._asdict() for p in positions],orders=[o._asdict() for o in orders],
                 reason=reason,plan=plan,timestamp_ms=int(time.time()*1000),

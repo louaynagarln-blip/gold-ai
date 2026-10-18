@@ -70,7 +70,7 @@ FxPro يدعم Expert Advisors على MT5 رسمياً. مكتبة MetaTrader5 �
 `python3 -m unittest discover -s tests -v`
 
 `python3 -m tests.benchmark` يقيس CPU محلياً على بيانات مصطنعة فقط، وليس سرعة شبكة أو تنفيذ وسيط.
-GitHub Actions يشغل اختبارات المحرك وJUnit وAndroid lint وبناء APK. وظيفة مستقلة تشغل اختباراً على محاكي Android API29.
+GitHub Actions يشغل اختبارات المحرك وJUnit وAndroid lint وبناء APK. وظيفة مستقلة تشغل اختباراً على محاكيي Android API29 وAPI35.
 نجاح اختبار تشغيل الواجهة لا يساوي نجاح جميع تفاعلاتها أو عملها مع FxPro.
 
 ## بوابة الانتقال للتداول Demo
