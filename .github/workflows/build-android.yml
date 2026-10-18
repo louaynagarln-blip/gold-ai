@@ -79,8 +79,10 @@ jobs:
           disable-animations: true
           script: |
             gradle --no-daemon connectedDebugAndroidTest
-            adb shell am start -n com.aigoldtrader.demo/.MainActivity
+            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            adb shell am start -W -n com.aigoldtrader.demo/.MainActivity
             sleep 2
+            adb shell pidof com.aigoldtrader.demo
             adb shell screencap -p /sdcard/dashboard.png
             adb pull /sdcard/dashboard.png dashboard.png
       - uses: actions/upload-artifact@v4
