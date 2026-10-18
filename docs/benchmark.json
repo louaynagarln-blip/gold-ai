@@ -1,0 +1,9 @@
+{
+  "kind": "synthetic_cpu_only",
+  "iterations": 2000,
+  "decision_ms_median": 0.7843610000000001,
+  "decision_ms_p95": 1.124233,
+  "decision_ms_max": 2.85642,
+  "broker_confirmation_ms": null,
+  "live_feed_age_ms": null
+}
