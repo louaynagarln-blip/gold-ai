@@ -1,1 +1,9 @@
-Failure occurred before Gradle compilation. Inspect Actions setup steps.
+Build step outcomes
+checkout=success
+java=success
+android=failure
+gradle=skipped
+compile=skipped
+Run: 39169015168
+
+Gradle did not start
