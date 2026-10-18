@@ -6,6 +6,7 @@ import android.widget.*
 class ScreenFixtureActivity : Activity() {
  override fun onCreate(savedInstanceState:Bundle?) {
   super.onCreate(savedInstanceState)
+  window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
   val panel=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL }
   panel.addView(TextView(this).apply { text="LOCAL TEST FIXTURE — NO TRADING" })
   val field=EditText(this).apply { id=R.id.fixture_volume;setText("1.00");inputType=8194 }

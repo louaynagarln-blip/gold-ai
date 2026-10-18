@@ -15,6 +15,11 @@ class ScreenServiceTest : ActivityInstrumentationTestCase2<ScreenFixtureActivity
   val screen=activity
   val prefs=screen.getSharedPreferences("screen",0)
   prefs.edit().putString("package",screen.packageName).remove("pending").remove("snapshot").commit()
+  val automation=instrumentation.getUiAutomation(android.app.UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES)
+  fun shell(command:String) { android.os.ParcelFileDescriptor.AutoCloseInputStream(automation.executeShellCommand(command)).use { it.readBytes() } }
+  shell("settings put secure enabled_accessibility_services null")
+  shell("settings put secure enabled_accessibility_services com.aigoldtrader.demo/.ScreenService")
+  shell("settings put secure accessibility_enabled 1")
   waitFor("Accessibility service not connected") { ScreenService.instance!=null }
   instrumentation.runOnMainSync {
    ScreenService.instance!!.start()
