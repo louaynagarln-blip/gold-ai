@@ -141,6 +141,8 @@ class Runtime:
         t=time.perf_counter()
         decision=analyze(convert(raw1),convert(raw5),c,now)
         decision_ms=(time.perf_counter()-t)*1000
+        if not 0 <= time.time()*1000-tick.time_msc <= c.max_tick_age_ms:
+            raise ValueError('Price became stale during broker response')
         # Verify account again after the data calls; a user may switch accounts in MT5.
         if not demo_identity(m.account_info(),self.login,self.server):
             raise ValueError('Account changed while reading')

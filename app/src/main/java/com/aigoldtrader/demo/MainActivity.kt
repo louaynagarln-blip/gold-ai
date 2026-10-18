@@ -51,7 +51,7 @@ class MainActivity : Activity() {
         label("تنفيذ الوسيط مقفل • المحاكاة لا ترسل صفقات", 17f, Color.rgb(255,190,100))
         status = label("غير متصل — الحساب غير متحقق", 20f)
         run = button("تشغيل محاكاة على بيانات Demo") {
-            if (!active) request("/dry-run", true) else stop()
+            if (!active) { generation++; request("/dry-run", true, emergency=true) } else stop()
         }.apply { isEnabled = false }
         button("STOP — إيقاف طارئ") { stop() }.setBackgroundColor(Color.rgb(145,35,48))
         label("الربط مع طرفية MT5", 20f)
@@ -69,7 +69,7 @@ class MainActivity : Activity() {
                 secret = token.text.toString()
                 token.text.clear()
                 getPreferences(0).edit().putString("endpoint", value).apply()
-                request("/stop", true)
+                request("/stop", true, emergency=true)
             }
         }
         details = label("السعر: —\nالإشارة: WAIT\nالصفقات والربح: غير متاحين\nزمن التنفيذ: لم يُقَس", 17f)
@@ -210,7 +210,7 @@ class MainActivity : Activity() {
                     }
                     values.put("costs_confirmed",costs.isChecked)
                     active=false; generation++
-                    request("/config",true,values)
+                    request("/config",true,values,emergency=true)
                 } catch (_: Exception) { alert("قيمة غير صحيحة — لم تُحفظ الإعدادات") }
             }.show()
     }

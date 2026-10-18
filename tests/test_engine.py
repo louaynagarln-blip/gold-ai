@@ -108,6 +108,18 @@ class RuntimeTests(unittest.TestCase):
             spec=original(*a);spec.currency_base='EUR';return spec
         self.fake.symbol_info=wrong
         self.assertEqual(self.runtime.poll()['mode'],'FAULT')
+    def test_slow_broker_response(self):
+        from unittest.mock import patch
+        clock=time.time
+        delayed=[False]
+        original=self.fake.copy_rates_from_pos
+        def slow(*args):
+            rows=original(*args)
+            if args[1]==self.fake.TIMEFRAME_M5: delayed[0]=True
+            return rows
+        self.fake.copy_rates_from_pos=slow
+        with patch('time.time',side_effect=lambda:clock()+(3 if delayed[0] else 0)):
+            self.assertEqual(self.runtime.poll()['mode'],'FAULT')
     def test_stop(self):
         self.runtime.poll();self.runtime.start_simulation();self.runtime.stop()
         self.assertEqual(self.runtime.poll()['mode'],'STOPPED')
