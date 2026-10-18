@@ -92,17 +92,17 @@ class MainActivity : Activity() {
     private fun label(value: String, size: Float, color: Int = Color.rgb(224,231,241)): TextView {
         return TextView(this).apply {
             text = value; textSize = size; setTextColor(color); setPadding(4,12,4,12)
-            layout.addView(this)
+            this@MainActivity.layout.addView(this)
         }
     }
     private fun button(value: String, action: () -> Unit): Button = Button(this).apply {
-        text=value; setOnClickListener { action() }; layout.addView(this)
+        text=value; setOnClickListener { action() }; this@MainActivity.layout.addView(this)
     }
     private fun input(hintText: String, password: Boolean): EditText = EditText(this).apply {
         hint=hintText; setTextColor(Color.WHITE); setHintTextColor(Color.GRAY)
         inputType=if(password) 129 else 17
         isSaveEnabled=false
-        layout.addView(this)
+        this@MainActivity.layout.addView(this)
     }
     private fun alert(message: String) { AlertDialog.Builder(this).setMessage(message).setPositiveButton("حسناً", null).show() }
     private fun stop() {

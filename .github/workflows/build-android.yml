@@ -74,7 +74,12 @@ jobs:
           api-level: 29
           arch: x86_64
           disable-animations: true
-          script: gradle --no-daemon connectedDebugAndroidTest
+          script: |
+            gradle --no-daemon connectedDebugAndroidTest
+            adb shell am start -n com.aigoldtrader.demo/.MainActivity
+            sleep 2
+            adb shell screencap -p /sdcard/dashboard.png
+            adb pull /sdcard/dashboard.png dashboard.png
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -82,3 +87,4 @@ jobs:
           path: |
             app/build/reports/androidTests
             app/build/outputs/androidTest-results
+            dashboard.png

@@ -1,8 +1,7 @@
-const prices=[];let p=3380;
-function ema(a,n){const k=2/(n+1);return a.reduce((e,x,i)=>i?x*k+e*(1-k):x,a[0]||0)}
-function rsi(a,n=14){if(a.length<n+1)return 50;let g=0,l=0;for(let i=a.length-n;i<a.length;i++){let d=a[i]-a[i-1];d>0?g+=d:l-=d}return l===0?100:100-(100/(1+(g/n)/(l/n)))}
-function analyze(){let e9=ema(prices.slice(-40),9),e21=ema(prices.slice(-50),21),R=rsi(prices),mom=prices.length>6?p-prices[prices.length-6]:0;let score=50;score+=e9>e21?18:-18;score+=R>55?14:R<45?-14:0;score+=mom>0?12:mom<0?-12:0;score=Math.max(5,Math.min(95,score));let sig=score>=72?'BUY':score<=28?'SELL':'WAIT';return{e9,e21,R,mom,score,sig}}
-function draw(){const c=document.querySelector('#chart'),x=c.getContext('2d'),w=c.width,h=c.height;x.clearRect(0,0,w,h);if(prices.length<2)return;let a=prices.slice(-80),mn=Math.min(...a),mx=Math.max(...a),range=mx-mn||1;x.strokeStyle='#d7b85a';x.lineWidth=3;x.beginPath();a.forEach((v,i)=>{let px=i/(a.length-1)*w,py=h-(v-mn)/range*(h-25)-12;i?x.lineTo(px,py):x.moveTo(px,py)});x.stroke()}
-function tick(){p+=((Math.random()-.49)*3.2);prices.push(p);if(prices.length>120)prices.shift();let a=analyze(),prev=prices.at(-2)||p,chg=(p-prev);price.textContent='$'+p.toFixed(2);change.textContent=(chg>=0?'+':'')+chg.toFixed(2)+' last tick';rsi.textContent=a.R.toFixed(1);ema.textContent=a.e9.toFixed(1)+' / '+a.e21.toFixed(1);macd.textContent=(a.e9-a.e21).toFixed(2);strength.textContent=Math.round(a.score)+'%';signal.textContent=a.sig;signal.className=a.sig.toLowerCase();entry.textContent='$'+p.toFixed(2);let buy=a.sig!=='SELL';sl.textContent='$'+(p+(buy?-8:8)).toFixed(2);tp1.textContent='$'+(p+(buy?12:-12)).toFixed(2);tp2.textContent='$'+(p+(buy?22:-22)).toFixed(2);reason.textContent=a.sig==='BUY'?'زخم صاعد مع تفوق المتوسط القصير. ننتظر تأكيد السعر الحقيقي قبل الاعتماد على الإشارة.':a.sig==='SELL'?'زخم هابط مع ضعف المتوسط القصير. ننتظر تأكيد السعر الحقيقي قبل الاعتماد على الإشارة.':'لا يوجد توافق كافٍ بين المؤشرات حالياً.';draw()}
-for(let i=0;i<40;i++){p+=(Math.random()-.5)*2;prices.push(p)}tick();setInterval(tick,1800);
-if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
+// Previous random-price simulation removed: do not present invented prices as market data.
+document.getElementById('status').textContent='غير متصل — لا توجد تغذية أسعار مباشرة';
+for (const id of ['price','change','strength','rsi','ema','macd','entry','sl','tp1','tp2']) {
+ document.getElementById(id).textContent='—';
+}
+document.getElementById('signal').textContent='WAIT';
+document.getElementById('reason').textContent='لا توجد بيانات من وسيط متحقق. استخدم تطبيق Android مع طرفية MT5 Demo وخادم HTTPS. تنفيذ التداول مقفل حتى التأهيل والموافقة.';
