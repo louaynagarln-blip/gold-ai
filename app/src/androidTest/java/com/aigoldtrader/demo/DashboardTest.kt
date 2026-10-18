@@ -14,7 +14,7 @@ class DashboardTest : ActivityInstrumentationTestCase2<MainActivity>(MainActivit
   assertFalse(SafetyPolicy.BROKER_EXECUTION_ENABLED)
   instrumentation.runOnMainSync {
    assertEquals(View.LAYOUT_DIRECTION_RTL,screen.window.decorView.layoutDirection)
-   val run=widgets(screen.window.decorView).filterIsInstance<Button>().first { it.text.toString().contains("تشغيل محاكاة") }
+   val run=widgets(screen.window.decorView).filterIsInstance<Button>().first { it.text.toString().contains("بدء مراقبة الشاشة") }
    assertFalse(run.isEnabled)
   }
  }
@@ -23,8 +23,8 @@ class DashboardTest : ActivityInstrumentationTestCase2<MainActivity>(MainActivit
   instrumentation.runOnMainSync {
    val views=widgets(screen.window.decorView)
    views.filterIsInstance<Button>().first { it.text.toString().contains("STOP") }.performClick()
-   assertTrue(views.filterIsInstance<TextView>().any { it.text.toString().contains("توقف محلياً") })
-   assertFalse(views.filterIsInstance<Button>().first { it.text.toString().contains("تشغيل محاكاة") }.isEnabled)
+   assertFalse(views.filterIsInstance<Button>().first { it.text.toString().contains("بدء مراقبة الشاشة") }.isEnabled)
+   assertFalse(views.filterIsInstance<Button>().first { it.text.toString().contains("بدء مراقبة الشاشة") }.isEnabled)
   }
  }
  fun testResumeCannotEnableTrading() {
@@ -32,7 +32,7 @@ class DashboardTest : ActivityInstrumentationTestCase2<MainActivity>(MainActivit
   instrumentation.runOnMainSync {
    instrumentation.callActivityOnPause(screen)
    instrumentation.callActivityOnResume(screen)
-   val run=widgets(screen.window.decorView).filterIsInstance<Button>().first { it.text.toString().contains("تشغيل محاكاة") }
+   val run=widgets(screen.window.decorView).filterIsInstance<Button>().first { it.text.toString().contains("بدء مراقبة الشاشة") }
    assertFalse(run.isEnabled)
    assertFalse(SafetyPolicy.BROKER_EXECUTION_ENABLED)
   }

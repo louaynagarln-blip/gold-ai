@@ -1,0 +1,6 @@
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+ android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewTextChanged"
+ android:accessibilityFeedbackType="feedbackGeneric" android:notificationTimeout="200"
+ android:accessibilityFlags="flagReportViewIds|flagRetrieveInteractiveWindows"
+ android:canRetrieveWindowContent="true" android:description="@string/screen_description"
+ android:settingsActivity="com.aigoldtrader.demo.MainActivity" />

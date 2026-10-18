@@ -1,1 +1,4 @@
-<resources><string name="app_name">AI GOLD TRADER</string></resources>
+<resources>
+ <string name="app_name">AI GOLD TRADER</string>
+ <string name="screen_description">قراءة عناصر تطبيق التداول الذي تختاره وتنفيذ الإجراء المختار مرة واحدة؛ لا تستخدم إحداثيات ولا تقرأ كلمات المرور. تحتاج معايرة واختباراً على هاتفك.</string>
+</resources>
