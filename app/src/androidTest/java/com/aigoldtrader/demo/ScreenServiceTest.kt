@@ -9,6 +9,14 @@ class ScreenServiceTest : ActivityInstrumentationTestCase2<ScreenFixtureActivity
  private fun waitFor(message:String,predicate:()->Boolean) {
   val deadline=System.currentTimeMillis()+15000
   while(!predicate() && System.currentTimeMillis()<deadline) Thread.sleep(100)
+  if(!predicate()) {
+   val auto=instrumentation.getUiAutomation(android.app.UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES)
+   for(command in listOf("settings get secure enabled_accessibility_services","settings get secure accessibility_enabled","dumpsys accessibility","dumpsys activity services com.aigoldtrader.demo")) {
+    val result=android.os.ParcelFileDescriptor.AutoCloseInputStream(auto.executeShellCommand(command)).use { String(it.readBytes()) }
+    println("DIAGNOSTIC $command\n$result")
+   }
+   println("PREFS: "+activity.getSharedPreferences("screen",0).all.toString())
+  }
   assertTrue(message,predicate())
  }
  fun testActualAccessibilityReadWriteClickAndStopOnLocalFixture() {
