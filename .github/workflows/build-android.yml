@@ -80,8 +80,6 @@ jobs:
           script: |
             gradle --no-daemon assembleDebug assembleDebugAndroidTest
             adb install -r app/build/outputs/apk/debug/app-debug.apk
-            adb shell settings put secure enabled_accessibility_services com.aigoldtrader.demo/.ScreenService
-            adb shell settings put secure accessibility_enabled 1
             gradle --no-daemon connectedDebugAndroidTest
             adb install -r app/build/outputs/apk/debug/app-debug.apk
             adb shell am start -W -n com.aigoldtrader.demo/.MainActivity
