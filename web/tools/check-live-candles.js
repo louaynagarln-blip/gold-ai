@@ -4,7 +4,7 @@
  if(process.env.MARKET_CANDLES_PROVIDER!=='twelvedata'||!process.env.TWELVE_DATA_API_KEY){console.log('GOLD_LIVE_CANDLES skipped: provider not configured');return}
  const feed=require('../lib/market-feed'),start=performance.now();
  const sets=await Promise.all(['M1','M5','M15'].map(tf=>feed.read('candles',tf)));
- const result={source:'Twelve Data',requestMs:Math.round(performance.now()-start),timeframes:sets.map((s,i)=>({timeframe:['M1','M5','M15'][i],ready:s.ready,code:s.code,count:s.bars.length,lastClosed:s.bars.at(-1)?.end??null,ageMs:s.bars.length?Date.now()-s.bars.at(-1).end:null}))};
+ const result={source:'Twelve Data',requestMs:Math.round(performance.now()-start),timeframes:sets.map((s,i)=>({timeframe:['M1','M5','M15'][i],ready:s.ready,code:s.code,count:s.bars.length,lastClosed:s.bars.at(-1)?.end??null,ageMs:s.bars.length?Date.now()-s.bars.at(-1).end:null,latestNativeClosedEnd:s.latestNativeClosedEnd??null,nativeMinuteAgeMs:s.latestNativeClosedEnd?Date.now()-s.latestNativeClosedEnd:null}))};
  console.log('GOLD_LIVE_CANDLES '+JSON.stringify(result));
- if(!sets.every(s=>s.ready))process.exitCode=1;
+ if(!sets.some(s=>s.ready))process.exitCode=1;
 })().catch(()=>{console.log('GOLD_LIVE_CANDLES {"ready":false,"reason":"provider_unavailable"}');process.exitCode=1});

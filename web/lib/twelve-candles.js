@@ -20,7 +20,11 @@ function normalize(raw,timeframe,now=Date.now()){
  }
  // Drop the older segment across a market closure; never fill missing minutes.
  const input={symbol:'XAUUSD',source:SOURCE,timeframe:'M1',candles:rows.slice(suffix)};
- const minutes=Q.candles(input,'M1',now,1);if(!minutes.ready)return {...minutes,timeframe};
+ const latestNativeClosedEnd=rows.filter(r=>r.time+60000<=now).at(-1)?.time+60000;
+ const diagnostics={latestNativeClosedEnd:Number.isFinite(latestNativeClosedEnd)?latestNativeClosedEnd:null};
+ // Validate native minute structure with the requested interval's age budget.
+ // The final aggregated interval is checked again; M1 still has its 90-second limit.
+ const minutes=Q.candles(input,'M1',now,1,Q.INTERVALS[timeframe]+30000);if(!minutes.ready)return {...minutes,timeframe,...diagnostics};
  const duration=Q.INTERVALS[timeframe],count=duration/60000,groups=new Map();
  for(const r of minutes.bars){const start=Math.floor(r.time/duration)*duration;if(!groups.has(start))groups.set(start,[]);groups.get(start).push(r)}
  const candles=[];
@@ -28,7 +32,7 @@ function normalize(raw,timeframe,now=Date.now()){
   if(group.length!==count||group[0].time!==time||group.at(-1).end!==time+duration||time+duration>now)continue;
   candles.push({time,open:group[0].open,high:Math.max(...group.map(r=>r.high)),low:Math.min(...group.map(r=>r.low)),close:group.at(-1).close,closed:true});
  }
- return {...Q.candles({symbol:'XAUUSD',source:SOURCE,timeframe,candles},timeframe,now),aggregation:timeframe==='M1'?'native-minute-ohlc':'complete-native-minute-bars',discardedBeforeGap:suffix,refreshAfterMs:CACHE_MS};
+ return {...Q.candles({symbol:'XAUUSD',source:SOURCE,timeframe,candles},timeframe,now),...diagnostics,aggregation:timeframe==='M1'?'native-minute-ohlc':'complete-native-minute-bars',discardedBeforeGap:suffix,refreshAfterMs:CACHE_MS};
 }
 function createReader({fetcher=(...args)=>fetch(...args),clock=()=>Date.now()}={}){
  let cache=null,inflight=null,blockedUntil=0,blockedCode='';
@@ -40,7 +44,7 @@ function createReader({fetcher=(...args)=>fetch(...args),clock=()=>Date.now()}={
    const url=new URL('https://api.twelvedata.com/time_series');for(const [k,v] of Object.entries({symbol:'XAU/USD',interval:'1min',outputsize:'5000',timezone:'UTC',apikey:key}))url.searchParams.set(k,v);
    const promise=(async()=>{
     try{
-     const response=await fetcher(url,{headers:{Accept:'application/json'},cache:'no-store',signal:AbortSignal.timeout(10000)});
+     const response=await fetcher(url,{headers:{Accept:'application/json','Cache-Control':'no-cache'},cache:'no-store',signal:AbortSignal.timeout(10000)});
      if(!response.ok){const code=[401,403].includes(response.status)?'PROVIDER_ACCESS':response.status===429?'PROVIDER_LIMIT':'PROVIDER_UNAVAILABLE';blockedCode=code;blockedUntil=clock()+([401,403,429].includes(response.status)?3600000:30000);return null}
      const raw=await response.json();if(raw.status!=='ok'){blockedCode='PROVIDER_REJECTED';blockedUntil=clock()+3600000;return null}
      cache={key,raw,at:clock()};return raw;

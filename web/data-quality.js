@@ -15,7 +15,7 @@
   return {price:positive(price)?price:null,sourceTime,ageMs,status,usable:status==='FRESH'};
  }
  function symbol(value){return String(value||'').toUpperCase().replace(/[^A-Z]/g,'');}
- function candles(raw,timeframe,now=Date.now(),minimum=22){
+ function candles(raw,timeframe,now=Date.now(),minimum=22,maxAgeMs){
   const duration=INTERVALS[timeframe],fail=(code,reasonAr)=>({ready:false,code,reasonAr,timeframe,bars:[]});
   if(!duration)return fail('INTERVAL','إطار زمني غير مدعوم');
   const instrument=symbol(raw?.symbol??raw?.instrument?.symbol);
@@ -38,7 +38,7 @@
    bars.push({time,end,open,high,low,close});
   }
   if(bars.length<minimum)return fail('WARMUP','يلزم '+minimum+' شمعة مغلقة على '+timeframe+'؛ المتاح '+bars.length);
-  if(now-bars.at(-1).end>duration+30000)return fail('STALE','شموع '+timeframe+' متأخرة؛ التحليل معلّق');
+  if(now-bars.at(-1).end>(maxAgeMs??duration+30000))return fail('STALE','شموع '+timeframe+' متأخرة؛ التحليل معلّق');
   return {ready:true,code:'READY',reasonAr:'شموع مغلقة موثقة من المصدر',timeframe,source:raw.source.trim().slice(0,120),symbol:instrument,bars};
  }
  function atr(bars,period=14){if(bars.length<period+1)return null;const tr=bars.slice(1).map((b,i)=>Math.max(b.high-b.low,Math.abs(b.high-bars[i].close),Math.abs(b.low-bars[i].close)));let v=tr.slice(0,period).reduce((a,b)=>a+b,0)/period;for(let i=period;i<tr.length;i++)v=(v*(period-1)+tr[i])/period;return v;}
