@@ -5,16 +5,23 @@ const round=(n,d=3)=>Number(Number(n).toFixed(d));
 
 function parseFredCsv(text){
   const lines=String(text||'').trim().split(/\r?\n/);if(lines.length<2)return [];
-  const out=[];for(const line of lines.slice(1)){const comma=line.indexOf(',');if(comma<0)continue;const date=line.slice(0,comma).replace(/^"|"$/g,'').trim(),value=Number(line.slice(comma+1).replace(/^"|"$/g,'').trim());if(date&&Number.isFinite(value))out.push({date,value})}return out;
+  const out=[];for(const line of lines.slice(1)){const comma=line.indexOf(',');if(comma<0)continue;const date=line.slice(0,comma).replace(/^"|"$/g,'').trim(),raw=line.slice(comma+1).replace(/^"|"$/g,'').trim(),value=Number(raw);if(date&&raw!==''&&raw!=='.'&&Number.isFinite(value))out.push({date,value})}return out;
 }
 function parseStooqCsv(text){
   const lines=String(text||'').trim().split(/\r?\n/);if(lines.length<2)return [];
   const headers=lines[0].split(',').map(x=>x.trim().toLowerCase()),dateIndex=headers.indexOf('date'),closeIndex=headers.indexOf('close');if(dateIndex<0||closeIndex<0)return [];
-  const out=[];for(const line of lines.slice(1)){const parts=line.split(','),date=String(parts[dateIndex]||'').trim(),value=Number(parts[closeIndex]);if(date&&Number.isFinite(value))out.push({date,value})}return out;
+  const out=[];for(const line of lines.slice(1)){const parts=line.split(','),date=String(parts[dateIndex]||'').trim(),raw=String(parts[closeIndex]??'').trim(),value=Number(raw);if(date&&raw!==''&&raw!=='.'&&Number.isFinite(value))out.push({date,value})}return out;
 }
-function changePct(series,lookback=5){const a=(series||[]).filter(x=>Number.isFinite(Number(x.value)));if(a.length<2)return 0;const last=Number(a.at(-1).value),past=Number(a[Math.max(0,a.length-1-lookback)].value);return past?((last-past)/past)*100:0}
-function latest(series){const x=(series||[]).at(-1);return x?Number(x.value):null}
-function absoluteChange(series,lookback=5){const a=(series||[]).filter(x=>Number.isFinite(Number(x.value)));if(a.length<2)return 0;return Number(a.at(-1).value)-Number(a[Math.max(0,a.length-1-lookback)].value)}
+const validValue=x=>x!==null&&x!==undefined&&x!==''&&typeof x!=='boolean'&&Number.isFinite(Number(x));
+function clean(series){return (series||[]).filter(x=>validValue(x.value))}
+function changePct(series,lookback=5){const a=clean(series);if(a.length<2)return null;const last=Number(a.at(-1).value),past=Number(a[Math.max(0,a.length-1-lookback)].value);return past?((last-past)/past)*100:null}
+function latest(series){const x=clean(series).at(-1);return x?Number(x.value):null}
+function absoluteChange(series,lookback=5){const a=clean(series);if(a.length<2)return null;return Number(a.at(-1).value)-Number(a[Math.max(0,a.length-1-lookback)].value)}
+function factor(series,absolute=false,lookback=5,now=Date.now()){
+ const a=clean(series),last=a.at(-1),date=last?.date,time=typeof date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(date)?Date.parse(date+'T00:00:00Z'):NaN;
+ const status=!last?'missing':!Number.isFinite(time)||time>now?'invalid':now-time>7*86400000?'stale':a.length<2?'insufficient':'available';
+ return {latest:latest(a),changePct:status==='available'?(absolute?absoluteChange(a,lookback):changePct(a,lookback)):null,date:date||null,status,unit:absolute?'percentage-points':'percent'};
+}
 
 function scoreNews(articles){
   const bullish=['war','conflict','attack','missile','sanction','crisis','escalat','uncertainty','recession','inflation','rate cut','fed cut','safe haven','invasion','tariff','geopolit','central bank buying','bank stress','default','توتر','حرب','هجوم','عقوبات','أزمة','تصعيد','تضخم','خفض الفائدة','ملاذ آمن'];
@@ -35,40 +42,20 @@ async function getMacroSnapshot(){
   try{data.gold=await fetchStooqGold(300)}catch(e){errors.push(`gold: ${e.message}`);data.gold=[]}
   let articles=[];try{articles=await fetchNews()}catch(e){errors.push(`news: ${e.message}`)}
 
-  const usdChange=changePct(data.usd,5),y10Change=absoluteChange(data.yield10,5),y2Change=absoluteChange(data.yield2,5),fedChange=absoluteChange(data.fedFunds,20),vixChange=changePct(data.vix,5),spChange=changePct(data.sp500,5),nasdaqChange=changePct(data.nasdaq,5),oilChange=changePct(data.oil,5),news=scoreNews(articles);
-  const components={
-    usd:clamp(-usdChange*20,-38,38),
-    yields10:clamp(-y10Change*26,-35,35),
-    yields2:clamp(-y2Change*28,-35,35),
-    policy:clamp(-fedChange*18,-22,22),
-    risk:clamp(vixChange*1.35,-28,28),
-    equities:clamp(-(spChange*.8+nasdaqChange*.45),-20,20),
-    oil:clamp(oilChange*.5,-12,12),
-    news:news.score
-  };
-  const composite=clamp(components.usd*.22+components.yields10*.16+components.yields2*.15+components.policy*.08+components.risk*.13+components.equities*.08+components.oil*.05+components.news*.13,-100,100);
-  const successful=series.filter(([k])=>data[k]?.length>2).length+(data.gold?.length>20?1:0)+(articles.length?1:0),quality=clamp(Math.round(successful/(series.length+2)*100),0,100);
-  const reasonsAr=[
-    usdChange>0?'قوة الدولار تضغط على الذهب':'ضعف الدولار يدعم الذهب',
-    y2Change>0?'ارتفاع عائد السنتين يرفع ضغط توقعات الفائدة':'تراجع عائد السنتين يخفف ضغط الفائدة',
-    y10Change>0?'ارتفاع عائد 10 سنوات عامل سلبي للذهب':'تراجع عائد 10 سنوات عامل داعم',
-    vixChange>0?'ارتفاع القلق في الأسواق يدعم طلب الملاذ الآمن':'تراجع القلق يقلل طلب الملاذ الآمن',
-    (spChange+nasdaqChange)<0?'ضعف الأسهم الأميركية يزيد الطلب الدفاعي':'قوة الأسهم تقلل بعض طلب الملاذ',
-    news.score>8?'الأخبار العالمية تميل لدعم الذهب':news.score<-8?'الأخبار العالمية تميل للضغط على الذهب':'الأخبار العالمية متوازنة'
-  ];
-  const reasons=[
-    usdChange>0?'US dollar strength pressures gold':'US dollar weakness supports gold',
-    y2Change>0?'Rising 2-year yield adds rate pressure':'Falling 2-year yield reduces rate pressure',
-    y10Change>0?'Rising 10-year yield is negative for gold':'Falling 10-year yield supports gold',
-    vixChange>0?'Market stress supports safe-haven demand':'Lower stress reduces safe-haven demand',
-    (spChange+nasdaqChange)<0?'US equity weakness supports defensive demand':'Equity strength reduces some safe-haven demand',
-    news.score>8?'World news leans supportive for gold':news.score<-8?'World news leans negative for gold':'World news is balanced'
-  ];
-  return {updatedAt:new Date().toISOString(),status:errors.length?'partial':'live',quality,compositeScore:round(composite,1),components,
-    factors:{
-      usd:{latest:latest(data.usd),changePct:round(usdChange)},yield10:{latest:latest(data.yield10),changePct:round(y10Change,3)},yield2:{latest:latest(data.yield2),changePct:round(y2Change,3)},fedFunds:{latest:latest(data.fedFunds),changePct:round(fedChange,3)},
-      vix:{latest:latest(data.vix),changePct:round(vixChange)},sp500:{latest:latest(data.sp500),changePct:round(spChange)},nasdaq:{latest:latest(data.nasdaq),changePct:round(nasdaqChange)},oil:{latest:latest(data.oil),changePct:round(oilChange)}
-    },
-    news:{...news,count:articles.length,headlines:articles.slice(0,10)},goldDaily:data.gold.slice(-120),reasonsAr,reasons,errors};
+  return buildSnapshot(data,articles,errors);
 }
-module.exports={parseFredCsv,parseStooqCsv,changePct,absoluteChange,scoreNews,getMacroSnapshot};
+function buildSnapshot(data={},articles=[],errors=[],now=Date.now()){
+ const factors={};for(const k of ['usd','yield10','yield2','fedFunds','vix','sp500','nasdaq','oil'])factors[k]=factor(data[k],['yield10','yield2','fedFunds'].includes(k),k==='fedFunds'?20:5,now);
+ const v=k=>factors[k].changePct,scale=(value,m,lo,hi)=>value===null?null:(clamp(value*m,lo,hi)||0),news=scoreNews(articles);
+ const components={usd:scale(v('usd'),-20,-38,38),yields10:scale(v('yield10'),-26,-35,35),yields2:scale(v('yield2'),-28,-35,35),policy:scale(v('fedFunds'),-18,-22,22),risk:scale(v('vix'),1.35,-28,28),equities:v('sp500')===null||v('nasdaq')===null?null:clamp(-(v('sp500')*.8+v('nasdaq')*.45),-20,20),oil:scale(v('oil'),.5,-12,12),news:articles.length?news.score:null};
+ const weights={usd:.22,yields10:.16,yields2:.15,policy:.08,risk:.13,equities:.08,oil:.05,news:.13},known=Object.entries(components).filter(([,x])=>x!==null);
+ // Missing components contribute no invented evidence; retain original weights without amplifying a lone source.
+ const composite=known.length?round(known.reduce((sum,[k,x])=>sum+x*weights[k],0),1):null;
+ const labels={usd:'الدولار',yields10:'عائد 10 سنوات',yields2:'عائد السنتين',policy:'الفائدة الفعلية',risk:'تقلب الأسواق',equities:'الأسهم الأميركية',oil:'النفط',news:'الأخبار العالمية'};
+ const reasonsAr=known.map(([k,x])=>`${labels[k]}: ${x===0?'لا تغير اتجاهي محسوب':x>0?'أثر داعم محتمل للذهب':'أثر ضاغط محتمل على الذهب'}`),reasons=known.map(([k,x])=>`${k}: ${x===0?'no measured directional change':x>0?'potential support for gold':'potential pressure on gold'}`);
+ if(known.length<8){reasonsAr.push('بعض العوامل مفقودة أو قديمة؛ لا تُعامل كإشارات محايدة أو أسباب مؤكدة.');reasons.push('Missing or old factors are excluded from directional evidence.')}
+ const quality=Math.round(known.reduce((sum,[k])=>sum+weights[k],0)*100);
+ return {updatedAt:new Date(now).toISOString(),status:quality===0?'unavailable':quality===100?'live':'partial',quality,compositeScore:composite,components,factors,news:{...news,count:articles.length,status:articles.length?'available':'missing',headlines:articles.slice(0,10)},goldDaily:(data.gold||[]).slice(-120),reasonsAr,reasons,errors};
+}
+
+module.exports={parseFredCsv,parseStooqCsv,changePct,absoluteChange,scoreNews,factor,buildSnapshot,getMacroSnapshot};
