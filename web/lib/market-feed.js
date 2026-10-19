@@ -4,6 +4,7 @@ const {normalizeQuote}=require('./provider-adapter');
 let market={};try{market=require('../server-data/market')}catch{}
 let quoteCache=null,inflight=null;
 async function read(kind='quote',timeframe='M1'){
+ if(kind==='candles'&&process.env.MARKET_CANDLES_PROVIDER==='twelvedata')return require('./twelve-candles').read(String(process.env.TWELVE_DATA_API_KEY||'').trim(),timeframe);
  const configured=kind==='candles'?(market.candlesUrl||process.env.MARKET_CANDLES_API_URL):(market.apiUrl||process.env.MARKET_API_URL);
  // A quote response may include documented OHLC arrays. Never synthesize candles from ticks.
  const url=String(configured||market.apiUrl||process.env.MARKET_API_URL||'').trim();
