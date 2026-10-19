@@ -1,8 +1,9 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 // Runs the actual dashboard script with a small DOM adapter and fixture-only HTTP responses.
 // This checks state transitions, not browser layout or a real user's authentication.
-async function dashboard({noTime=false,unavailable=false,cloud=false,storageFull=false}={}){
+async function dashboard({noTime=false,unavailable=false,cloud=false,storageFull=false,legacy=null,physicalRaw=null}={}){
  let now=Date.UTC(2026,9,19,12),offline=false;const ids=new Map(),intervals=[],storage=new Map([['gold_token','fixture-only'],['gold_username','fixture']]);
+ if(legacy)storage.set('gold_holding',JSON.stringify(legacy));if(physicalRaw!==null)storage.set('gold_physical_v1_fixture',physicalRaw);
  function element(id){if(!ids.has(id))ids.set(id,{textContent:'',innerHTML:'',hidden:false,value:'',checked:false,style:{},dataset:{},className:'',classList:{add(){},remove(){},toggle(){}},setAttribute(){},querySelector(){return null},appendChild(){},cloneNode(){return element(id+'clone')},click(){},addEventListener(){}});return ids.get(id)}
  const html=fs.readFileSync('index.html','utf8');for(const m of html.matchAll(/id="([^"]+)"/g))element(m[1]);
  const OriginalDate=Date;class Clock extends OriginalDate{constructor(...args){super(...(args.length?args:[now]))}static now(){return now}}
@@ -15,7 +16,7 @@ async function dashboard({noTime=false,unavailable=false,cloud=false,storageFull
   else if(url.startsWith('/api/forecast'))data={forecast:{ready:false},macro:{quality:0,goldDaily:[],factors:{},news:{headlines:[]}},calendar:{events:[]}};
   else data={events:[]};return new Response(JSON.stringify(data),{status});
  };
- vm.createContext(context);for(const file of ['data-quality.js','quote-recorder.js','journal-core.js','signal-engine.js','forecast-engine.js','app.js'])vm.runInContext(file==='app.js'?fs.readFileSync(file,'utf8').replace(/\}\)\(\);\s*$/,"window.__testDashboard={get paper(){return paper},paperBuy,fetchLive};})();"):fs.readFileSync(file,'utf8'),context,{filename:file});
+ vm.createContext(context);for(const file of ['data-quality.js','physical-gold.js','quote-recorder.js','journal-core.js','signal-engine.js','forecast-engine.js','app.js'])vm.runInContext(file==='app.js'?fs.readFileSync(file,'utf8').replace(/\}\)\(\);\s*$/,"window.__testDashboard={get paper(){return paper},paperBuy,fetchLive};})();"):fs.readFileSync(file,'utf8'),context,{filename:file});
  await new Promise(resolve=>setImmediate(resolve));await new Promise(resolve=>setImmediate(resolve));
  return {ids,storage,context,advance(ms){now+=ms;for(const fn of intervals.slice(0))if(fn.name==='updateTime')fn()},async disconnect(){offline=true;await vm.runInContext('__testDashboard.fetchLive()',context)},eval:code=>vm.runInContext(code,context)};
 }
@@ -33,3 +34,7 @@ test('timestamp-less quote is never added to free recorder',async()=>{const d=aw
 test("recorder quota error reports memory-only mode without declaring a market disconnection",async()=>{const d=await dashboard({storageFull:true});assert.match(d.ids.get("recorderStatus").textContent,/في الذاكرة فقط/);assert.match(d.ids.get("dataQualityStatus").textContent,/سعر حديث/);assert.equal(d.ids.get("observedCount").textContent,1)});
 
 test("dashboard displays measured server candle request duration and free polling interval",async()=>{const d=await dashboard();assert.match(d.ids.get("candlePerformance").textContent,/25 ms/);assert.match(d.ids.get("candlePerformance").textContent,/120 ثانية/)});
+
+test('legacy holdings stay intact until the user explicitly saves weight and purity',async()=>{const d=await dashboard({legacy:{grams:8,cost:1125}});assert.equal(d.ids.get('physicalTotalCount').textContent,0);assert.equal(d.ids.get('grams').value,8);assert.equal(d.ids.get('cost').value,1125);assert.equal(d.ids.get('physicalLegacy').hidden,false);assert.equal(JSON.parse(d.storage.get('gold_holding')).grams,8)});
+test('physical form saves 21 karat coin and background price polling never overwrites a draft',async()=>{const d=await dashboard();d.ids.get('physicalPreset').value='coin';d.ids.get('physicalPreset').onchange();d.ids.get('cost').value='1125';d.ids.get('physicalForm').onsubmit({preventDefault(){}});assert.equal(d.ids.get('physicalTotalCount').textContent,1);assert.equal(d.ids.get('physicalPureGrams').textContent,'7.0000 غ');assert.equal(d.ids.get('physicalNetOffer').textContent,'—');d.ids.get('cost').value='600';await d.eval('__testDashboard.fetchLive()');assert.equal(d.ids.get('cost').value,'600');assert.equal(JSON.parse(d.storage.get('gold_physical_v1_fixture')).pieces[0].purityValue,21)});
+test('corrupt physical storage is preserved and blocks accidental replacement',async()=>{const d=await dashboard({physicalRaw:'{broken'});d.ids.get('physicalForm').onsubmit({preventDefault(){}});assert.equal(d.storage.get('gold_physical_v1_fixture'),'{broken');assert.match(d.ids.get('physicalStorage').textContent,/لم تُمسح/)});
