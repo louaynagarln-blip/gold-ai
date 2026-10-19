@@ -33,5 +33,17 @@
   const sum=key=>details.reduce((total,p)=>total+p[key],0),cash=key=>details.reduce((total,p)=>total+Math.round(p[key]*100),0)/100,hasAllBids=details.length>0&&details.every(p=>p.bidFresh);
   return {details,quantity:sum('quantity'),grams:details.reduce((n,p)=>n+p.grams*p.quantity,0),pureGrams:sum('pureGrams'),cost:cash('totalCost'),reference:details.length&&price>0?sum('reference'):null,netOffer:hasAllBids?cash('netOffer'):null,offerProfit:hasAllBids?cash('offerProfit'):null,hasAllBids};
  }
- return {SCHEMA,TROY_OUNCE,MAX,presets,piece,restore,summary};
+ // Cash comparisons only: never infer a future jeweller quote from spot forecasts.
+ function purchase(raw,spot){
+  const p=piece({...raw,id:'purchase_plan',netBid:null,bidAt:null}),target=number(raw.targetProfit);
+  if(p.unitCost<=0)throw Error('سعر الشراء يجب أن يكون أكبر من صفر');
+  if(target===null||target<0||target>1e9||Math.abs(target*100-Math.round(target*100))>1e-5)throw Error('أدخل الربح المستهدف لكل قطعة بالدولار، أو صفر للتعادل');
+  const askCents=Math.round(p.unitCost*100),targetCents=Math.round(target*100),totalTarget=(askCents+targetCents)*p.quantity;
+  if(totalTarget>1e14)throw Error('مجموع الكلفة والهدف يتجاوز الحدود');
+  const bid=number(raw.resaleBid);
+  if(raw.resaleBid!==undefined&&raw.resaleBid!==null&&raw.resaleBid!==''&&(!(bid>0&&bid<=1e9)||Math.abs(bid*100-Math.round(bid*100))>1e-5))throw Error('أدخل صافي عرض إعادة البيع الصحيح، أو اتركه فارغاً');
+  const purePerPiece=p.grams*p.purityValue/(p.purityMode==='karat'?24:1000),reference=number(spot)>0?purePerPiece/TROY_OUNCE*number(spot):null,bidCents=bid===null?null:Math.round(bid*100),delta=bidCents===null?null:bidCents-askCents;
+  return {purePerPiece,pureGrams:purePerPiece*p.quantity,quantity:p.quantity,totalCost:askCents*p.quantity/100,referencePerPiece:reference,premiumPerPiece:reference===null?null:p.unitCost-reference,premiumPct:reference===null?null:(p.unitCost/reference-1)*100,netResale:bidCents===null?null:bidCents*p.quantity/100,immediateDifference:delta===null?null:delta*p.quantity/100,immediateDifferencePct:delta===null?null:delta/askCents*100,breakEvenPerPiece:p.unitCost,targetPerPiece:(askCents+targetCents)/100,targetTotal:totalTarget/100,requiredResaleRisePct:bidCents===null?null:((askCents+targetCents)/bidCents-1)*100,invertedQuote:bidCents!==null&&bidCents>askCents};
+ }
+ return {SCHEMA,TROY_OUNCE,MAX,presets,piece,restore,summary,purchase};
 });
