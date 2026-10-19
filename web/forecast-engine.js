@@ -19,5 +19,16 @@ function analyze(input,macro={},config={}){
  result.warningAr=[result.warningAr,'درجات النموذج وأوزان السيناريو ليست احتمالات نجاح معايرة. المرجع إغلاق M15؛ النتيجة تُقاس عند إغلاق M1 المطابق للموعد.'].filter(Boolean).join(' ');
  return result;
 }
-return {analyze,evaluate:J.evaluate,technicalScore,dailyVolatility};
+function context(input,now=Date.now()){
+ const checked=Q.candles({symbol:input?.symbol,source:input?.source,timeframe:'M15',candles:input?.bars||[]},'M15',now,96);
+ if(!checked.ready)return {ready:false,reasonAr:checked.reasonAr};
+ const bars=checked.bars.slice(-96),low=Math.min(...bars.map(b=>b.low)),high=Math.max(...bars.map(b=>b.high)),first=bars[0],last=bars.at(-1);
+ return {ready:true,source:checked.source,referenceTime:last.end,startTime:first.time,referencePrice:last.close,low,high,changePct:(last.close/first.open-1)*100,positionPct:high===low?null:(last.close-low)/(high-low)*100};
+}
+function validReference(forecast,input,now=Date.now()){
+ const checked=Q.candles({symbol:input?.symbol,source:input?.source,timeframe:'M15',candles:input?.bars||[]},'M15',now);
+ const age=now-Date.parse(forecast?.generatedAt);
+ return Boolean(checked.ready&&forecast?.ready&&forecast.modelVersion===J.MODEL&&forecast.referenceTime===checked.bars.at(-1).end&&age>=0&&age<30*60000);
+}
+return {analyze,context,validReference,evaluate:J.evaluate,technicalScore,dailyVolatility};
 });

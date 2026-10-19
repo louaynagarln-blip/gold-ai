@@ -38,9 +38,12 @@ async function fetchNews(){const query='gold OR "Federal Reserve" OR inflation O
 async function getMacroSnapshot(){
   const errors=[],data={};
   const series=[['usd','DTWEXBGS'],['yield10','DGS10'],['yield2','DGS2'],['fedFunds','DFF'],['vix','VIXCLS'],['sp500','SP500'],['nasdaq','NASDAQCOM'],['oil','DCOILWTICO']];
-  await Promise.all(series.map(async([key,id])=>{try{data[key]=await fetchFred(id,100)}catch(e){errors.push(`${key}: ${e.message}`);data[key]=[]}}));
-  try{data.gold=await fetchStooqGold(300)}catch(e){errors.push(`gold: ${e.message}`);data.gold=[]}
-  let articles=[];try{articles=await fetchNews()}catch(e){errors.push(`news: ${e.message}`)}
+  let articles=[];
+  await Promise.all([
+    ...series.map(async([key,id])=>{try{data[key]=await fetchFred(id,100)}catch(e){errors.push(`${key}: ${e.message}`);data[key]=[]}}),
+    (async()=>{try{data.gold=await fetchStooqGold(300)}catch(e){errors.push(`gold: ${e.message}`);data.gold=[]}})(),
+    (async()=>{try{articles=await fetchNews()}catch(e){errors.push(`news: ${e.message}`)}})()
+  ]);
 
   return buildSnapshot(data,articles,errors);
 }
