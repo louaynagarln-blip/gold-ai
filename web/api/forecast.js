@@ -15,7 +15,7 @@ module.exports=async function(req,res){
     if(!calendarCache.value||now-calendarCache.at>20*60*1000){calendarCache.value=await getCalendarSnapshot();calendarCache.at=now}
     const calendar=calendarCache.value,macro={...macroCache.value,calendar,eventRisk24h:calendar.risk24h,eventRisk48h:calendar.risk48h};
     const fresh=require('../data-quality').quote({price:quote.quality.price,sourceTime:quote.quality.sourceTime});if(!fresh.usable)return res.status(200).json({forecast:{ready:false,action:'WAIT',messageAr:'انتهت صلاحية السعر أثناء تحميل الأخبار'}});
-    const forecast=Forecast.analyze(candles,macro);let storage=journal.configured()?'CONFIGURED':'NOT_CONFIGURED';if(forecast.ready&&journal.configured())try{await journal.record(user.u,forecast)}catch{storage='UNAVAILABLE'}
+    const forecast=Forecast.analyze(candles,macro);let storage=journal.configured()?'CONFIGURED':'NOT_CONFIGURED';if(forecast.ready&&journal.configured())try{await journal.record(user.u,forecast);const evaluationBars=await feed.read('candles','M1');if(evaluationBars.ready)await journal.reconcile(user.u,evaluationBars.bars)}catch{storage='UNAVAILABLE'}
     res.setHeader('Cache-Control','private, no-store');return res.status(200).json({forecast,macro,calendar,storage});
   }catch(e){return res.status(502).json({error:'Forecast unavailable',details:'Market or intelligence source unavailable'})}
 };

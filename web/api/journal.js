@@ -2,5 +2,5 @@ const {verify,bearer}=require('../lib/auth');const journal=require('../lib/journ
 module.exports=async(req,res)=>{res.setHeader('Cache-Control','private, no-store');if(req.method!=='GET')return res.status(405).json({error:'Method not allowed'});
  const user=verify(bearer(req),auth.secret);if(!user)return res.status(401).json({error:'Unauthorized'});
  if(!journal.configured())return res.status(503).json({status:'NOT_CONFIGURED',entries:[],messageAr:'الحفظ السحابي غير مفعّل؛ صدّر نسخة احتياطية لحماية السجل'});
- try{return res.status(200).json({status:'CONNECTED',entries:await journal.read(user.u)});}catch{return res.status(503).json({status:'UNAVAILABLE',entries:[],messageAr:'تعذّرت مزامنة السجل؛ النسخة المحلية محفوظة'});}
+ try{const month=req.query?.month;if(month&&!/^\d{4}-(0[1-9]|1[0-2])$/.test(String(month)))return res.status(400).json({error:'Invalid month'});return res.status(200).json({status:'CONNECTED',...await journal.read(user.u,month)});}catch{return res.status(503).json({status:'UNAVAILABLE',entries:[],messageAr:'تعذّرت مزامنة السجل؛ النسخة المحلية محفوظة'});}
 };

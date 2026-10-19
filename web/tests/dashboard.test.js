@@ -1,7 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 // Runs the actual dashboard script with a small DOM adapter and fixture-only HTTP responses.
 // This checks state transitions, not browser layout or a real user's authentication.
-async function dashboard({noTime=false,unavailable=false}={}){
+async function dashboard({noTime=false,unavailable=false,cloud=false}={}){
  let now=Date.UTC(2026,9,19,12),offline=false;const ids=new Map(),intervals=[],storage=new Map([['gold_token','fixture-only'],['gold_username','fixture']]);
  function element(id){if(!ids.has(id))ids.set(id,{textContent:'',innerHTML:'',hidden:false,value:'',checked:false,style:{},dataset:{},className:'',classList:{add(){},remove(){},toggle(){}},setAttribute(){},querySelector(){return null},appendChild(){},cloneNode(){return element(id+'clone')},click(){},addEventListener(){}});return ids.get(id)}
  const html=fs.readFileSync('index.html','utf8');for(const m of html.matchAll(/id="([^"]+)"/g))element(m[1]);
@@ -11,7 +11,7 @@ async function dashboard({noTime=false,unavailable=false}={}){
   if(url.startsWith('/api/session'))data={username:'fixture'};
   else if(url.startsWith('/api/market'))data={price:4000,...(noTime?{}:{timestamp:now})};
   else if(url.startsWith('/api/candles')){const tf=new URL(url,'https://fixture.test').searchParams.get('timeframe');if(unavailable)data={ready:false,bars:[],reasonAr:'لا يوجد مصدر شموع'};else{const d=Q.INTERVALS[tf];data=Q.candles({symbol:'XAUUSD',source:'SYNTHETIC FIXTURE ONLY',timeframe:tf,candles:Array.from({length:30},(_,i)=>({time:now-(30-i)*d,open:4000+i/10,high:4002+i/10,low:3998+i/10,close:4000+(i+1)/10}))},tf,now)}}
-  else if(url.startsWith('/api/journal')){status=503;data={status:'NOT_CONFIGURED'}}
+  else if(url.startsWith('/api/journal')){if(cloud){data={status:'CONNECTED',availableMonths:['2026-09','2026-10'],entries:url.includes('month=2026-09')?[{id:'archive',createdAt:'2026-09-01T00:00:00Z',price:4000,evaluations:{}}]:[]}}else{status=503;data={status:'NOT_CONFIGURED'}}}
   else if(url.startsWith('/api/forecast'))data={forecast:{ready:false},macro:{quality:0,goldDaily:[],factors:{},news:{headlines:[]}},calendar:{events:[]}};
   else data={events:[]};return new Response(JSON.stringify(data),{status});
  };
@@ -24,3 +24,5 @@ test('missing source timestamp never generates a forecast or entry plan',async()
 test('fresh quote without OHLC shows reason and WAIT',async()=>{const d=await dashboard({unavailable:true});assert.equal(d.ids.get('signal').textContent,'WAIT');assert.match(d.ids.get('candleStatus').textContent,/لا يوجد مصدر/);assert.equal(d.ids.get('f24Bias').textContent,'—')});
 test('price aging without another network event immediately clears forecast and plan',async()=>{const d=await dashboard();d.advance(31000);assert.match(d.ids.get('dataQualityStatus').textContent,/قديم/);assert.equal(d.ids.get('signal').textContent,'WAIT');assert.equal(d.ids.get('f24Bias').textContent,'—');assert.equal(d.ids.get('entry').textContent,'—');assert.equal(d.eval('__testDashboard.paperBuy(100)'),false)});
 test('network loss clears cached forecasts and blocks paper actions',async()=>{const d=await dashboard();await d.disconnect();assert.match(d.ids.get('dataQualityStatus').textContent,/مقطوع/);assert.equal(d.ids.get('f24Bias').textContent,'—');assert.equal(d.eval('__testDashboard.paperBuy(100)'),false)});
+
+test('cloud archive selection shows old month without replacing recent local journal',async()=>{const d=await dashboard({cloud:true});assert.match(d.ids.get('journalStatus').textContent,/السحابي متصل/);d.ids.get('journalMonth').value='2026-09';await d.ids.get('journalMonth').onchange();assert.equal(d.ids.get('forecastCount').textContent,1);assert.equal(d.ids.get('journalMonth').value,'2026-09');const saved=JSON.parse(d.storage.get('gold_forecast_journal_v42_fixture')||'[]');assert(!saved.some(e=>e.id==='archive'));d.ids.get('journalMonth').value='';await d.ids.get('journalMonth').onchange();assert.equal(d.ids.get('forecastCount').textContent,saved.length);assert(!JSON.parse(d.storage.get('gold_forecast_journal_v42_fixture')||'[]').some(e=>e.id==='archive'))});
