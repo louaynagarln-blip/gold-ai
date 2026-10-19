@@ -10,7 +10,7 @@ async function dashboard({noTime=false,unavailable=false,cloud=false,storageFull
  context.fetch=async url=>{if(offline)throw Error('fixture disconnected');let data,status=200;const Q=require('../data-quality');
   if(url.startsWith('/api/session'))data={username:'fixture'};
   else if(url.startsWith('/api/market'))data={price:4000,symbol:'XAUUSD',source:'FIXTURE',...(noTime?{}:{timestamp:now})};
-  else if(url.startsWith('/api/candles')){const tf=new URL(url,'https://fixture.test').searchParams.get('timeframe');if(unavailable)data={ready:false,bars:[],reasonAr:'لا يوجد مصدر شموع'};else{const d=Q.INTERVALS[tf];data=Q.candles({symbol:'XAUUSD',source:'SYNTHETIC FIXTURE ONLY',timeframe:tf,candles:Array.from({length:30},(_,i)=>({time:now-(30-i)*d,open:4000+i/10,high:4002+i/10,low:3998+i/10,close:4000+(i+1)/10}))},tf,now)}}
+  else if(url.startsWith('/api/candles')){data={timeframes:{},requestMs:25,refreshAfterMs:120000};for(const tf of ['M1','M5','M15']){if(unavailable)data.timeframes[tf]={ready:false,bars:[],reasonAr:'لا يوجد مصدر شموع'};else{const d=Q.INTERVALS[tf];data.timeframes[tf]=Q.candles({symbol:'XAUUSD',source:'SYNTHETIC FIXTURE ONLY',timeframe:tf,candles:Array.from({length:30},(_,i)=>({time:now-(30-i)*d,open:4000+i/10,high:4002+i/10,low:3998+i/10,close:4000+(i+1)/10}))},tf,now)}}}
   else if(url.startsWith('/api/journal')){if(cloud){data={status:'CONNECTED',availableMonths:['2026-09','2026-10'],entries:url.includes('month=2026-09')?[{id:'archive',createdAt:'2026-09-01T00:00:00Z',price:4000,evaluations:{}}]:[]}}else{status=503;data={status:'NOT_CONFIGURED'}}}
   else if(url.startsWith('/api/forecast'))data={forecast:{ready:false},macro:{quality:0,goldDaily:[],factors:{},news:{headlines:[]}},calendar:{events:[]}};
   else data={events:[]};return new Response(JSON.stringify(data),{status});
@@ -31,3 +31,5 @@ test('free recorder keeps source-timed samples through disconnect without enabli
 test('timestamp-less quote is never added to free recorder',async()=>{const d=await dashboard({noTime:true});assert.equal(d.ids.get('observedCount').textContent,0);assert.equal(d.storage.has('gold_observed_quotes_v1_fixture'),false)});
 
 test("recorder quota error reports memory-only mode without declaring a market disconnection",async()=>{const d=await dashboard({storageFull:true});assert.match(d.ids.get("recorderStatus").textContent,/في الذاكرة فقط/);assert.match(d.ids.get("dataQualityStatus").textContent,/سعر حديث/);assert.equal(d.ids.get("observedCount").textContent,1)});
+
+test("dashboard displays measured server candle request duration and free polling interval",async()=>{const d=await dashboard();assert.match(d.ids.get("candlePerformance").textContent,/25 ms/);assert.match(d.ids.get("candlePerformance").textContent,/120 ثانية/)});
