@@ -1,6 +1,7 @@
 'use strict';
 // Explicit deployment preflight only. Never run as part of fixture unit tests.
 (async()=>{
+ if(process.env.MARKET_CANDLES_PROVIDER!=='twelvedata'||!process.env.TWELVE_DATA_API_KEY){console.log('GOLD_LIVE_CANDLES skipped: provider not configured');return}
  const feed=require('../lib/market-feed'),start=performance.now();
  const sets=await Promise.all(['M1','M5','M15'].map(tf=>feed.read('candles',tf)));
  const result={source:'Twelve Data',requestMs:Math.round(performance.now()-start),timeframes:sets.map((s,i)=>({timeframe:['M1','M5','M15'][i],ready:s.ready,code:s.code,count:s.bars.length,lastClosed:s.bars.at(-1)?.end??null,ageMs:s.bars.length?Date.now()-s.bars.at(-1).end:null}))};
