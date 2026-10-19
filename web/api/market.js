@@ -1,0 +1,3 @@
+const {verify,bearer}=require('../lib/auth');const feed=require('../lib/market-feed');let auth={};try{auth=require('../server-data/auth')}catch{}
+module.exports=async(req,res)=>{res.setHeader('Cache-Control','private, no-store');if(req.method!=='GET')return res.status(405).json({error:'Method not allowed'});if(!verify(bearer(req),auth.secret))return res.status(401).json({error:'Unauthorized'});
+try{const {quality}=await feed.read();return res.status(200).json({...quality,timestamp:quality.sourceTime,receivedAt:Date.now()});}catch{return res.status(502).json({error:'Market source unavailable',status:'DISCONNECTED'});}};

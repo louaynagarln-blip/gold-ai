@@ -1,0 +1,4 @@
+const crypto=require('crypto');const {issue}=require('../lib/auth');
+let users=[];try{users=require('../server-data/users')}catch{}
+let auth={};try{auth=require('../server-data/auth')}catch{}
+module.exports=async function(req,res){if(req.method!=='POST')return res.status(405).json({ok:false,error:'Method not allowed'});const b=req.body||{},name=String(b.username||'').trim(),u=users.find(x=>String(x.username).toLowerCase()===name.toLowerCase()&&x.active);if(!u)return res.status(401).json({ok:false});try{const h=crypto.scryptSync(String(b.password||''),u.salt,64);const ok=crypto.timingSafeEqual(h,Buffer.from(u.hash,'hex'));if(!ok)return res.status(401).json({ok:false});return res.status(200).json({ok:true,token:issue(u.username,auth.secret),username:u.username})}catch{return res.status(401).json({ok:false})}}
