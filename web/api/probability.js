@@ -1,0 +1,3 @@
+'use strict';
+const {verify,bearer}=require('../lib/auth'),history=require('../lib/probability-history'),engine=require('../lib/probability-engine');let auth={};try{auth=require('../server-data/auth')}catch{}
+module.exports=async(req,res)=>{res.setHeader('Cache-Control','private, no-store');if(req.method!=='GET')return res.status(405).json({error:'Method not allowed'});if(!verify(bearer(req),auth.secret))return res.status(401).json({error:'Unauthorized'});try{const data=await history.read(process.env.TWELVE_DATA_API_KEY);return res.status(200).json({...engine.run(data),requests:data.requests,requestMs:data.requestMs})}catch{return res.status(503).json({ready:false,reasonAr:'تعذّر الحصول على تاريخ ساعة موثوق ضمن صلاحية المصدر وحدوده؛ لم نختلق احتمالات.'})}};
