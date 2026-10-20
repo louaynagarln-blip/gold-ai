@@ -1,8 +1,8 @@
 'use strict';
 const {ema,rsi}=require('../signal-engine');
-const H=3600000,MODEL='gold-h1-frequency-v1',MIN_TRAIN=50,MIN_TEST=100,MIN_GROUP_TEST=30;
+const H=3600000,MODEL='gold-h1-frequency-v2',MIN_TRAIN=50,MIN_TEST=100,MIN_GROUP_TEST=30;
 const classes=['UP','DOWN','FLAT'],groupNames={UP:'اتجاه وزخم صاعدان',DOWN:'اتجاه وزخم هابطان',MIXED:'مؤشرات مختلطة'};
-function regime(bars,i){if(i<47)return null;const a=bars.slice(i-47,i+1);if(a.some((b,j)=>j&&b.end-a[j-1].end!==H))return null;const c=a.map(b=>b.close),fast=ema(c,9),slow=ema(c,21),r=rsi(c,14);return fast>slow&&r>=55?'UP':fast<slow&&r<=45?'DOWN':'MIXED'}
+function regime(bars,i){if(i<47)return null;const a=bars.slice(i-47,i+1);if(a.at(-1).end-a[0].time>7*24*H||a.some((b,j)=>j&&b.end-a[j-1].end>72*H))return null;const c=a.map(b=>b.close),fast=ema(c,9),slow=ema(c,21),r=rsi(c,14);return fast>slow&&r>=55?'UP':fast<slow&&r<=45?'DOWN':'MIXED'}
 function outcome(a,b){const d=(b/a-1)*100;return Math.abs(d)<=.05?'FLAT':d>0?'UP':'DOWN'}
 function counts(rows){return Object.fromEntries(classes.map(c=>[c,rows.filter(r=>r.actual===c).length]))}
 function distribution(rows){const n=counts(rows);return Object.fromEntries(classes.map(c=>[c,(n[c]+1)/(rows.length+3)]))}
@@ -19,9 +19,9 @@ function run(input,now=Date.now()){
   const evaluated=test.filter(s=>groups[s.group].n>0),matched=evaluated.filter(s=>s.group===currentGroup),fit=groups[currentGroup]||{n:0,p:null},observed=counts(matched);
   const modelBrier=evaluated.length?evaluated.reduce((s,r)=>s+brier(groups[r.group].p,r.actual),0)/evaluated.length:null,baselineBrier=evaluated.length?evaluated.reduce((s,r)=>s+brier(base,r.actual),0)/evaluated.length:null;
   const error=matched.length?Math.max(...classes.map(c=>Math.abs(observed[c]/matched.length-fit.p[c]))):null;
-  const reasons=[];if(!fresh)reasons.push('مرجع الساعة قديم');if(!currentGroup)reasons.push('يلزم 48 شمعة ساعة متصلة لتحديد الحالة الحالية');if(fit.n<MIN_TRAIN)reasons.push('حالات بناء النموذج المشابهة أقل من '+MIN_TRAIN);if(evaluated.length<MIN_TEST)reasons.push('نتائج الاختبار المنفصلة أقل من '+MIN_TEST);if(matched.length<MIN_GROUP_TEST)reasons.push('حالات الاختبار المشابهة أقل من '+MIN_GROUP_TEST);if(modelBrier!==null&&modelBrier>=baselineBrier)reasons.push('النموذج لم يتفوق على تكرار الاتجاهات التاريخي البسيط');if(error!==null&&error>.10)reasons.push('فرق التوقع عن التكرار المرصود يتجاوز 10 نقاط مئوية');
+  const reasons=[];if(!fresh)reasons.push('مرجع الساعة قديم');if(!currentGroup)reasons.push('يلزم 48 شمعة ساعة متاحة بلا فجوة تتجاوز 72 ساعة وضمن سبعة أيام');if(fit.n<MIN_TRAIN)reasons.push('حالات بناء النموذج المشابهة أقل من '+MIN_TRAIN);if(evaluated.length<MIN_TEST)reasons.push('نتائج الاختبار المنفصلة أقل من '+MIN_TEST);if(matched.length<MIN_GROUP_TEST)reasons.push('حالات الاختبار المشابهة أقل من '+MIN_GROUP_TEST);if(modelBrier!==null&&modelBrier>=baselineBrier)reasons.push('النموذج لم يتفوق على تكرار الاتجاهات التاريخي البسيط');if(error!==null&&error>.10)reasons.push('فرق التوقع عن التكرار المرصود يتجاوز 10 نقاط مئوية');
   return {hours,ready:reasons.length===0,reasons,trainingCases:fit.n,validationCases:evaluated.length,matchingValidationCases:matched.length,modelBrier,baselineBrier,maxGroupCalibrationError:error,probabilities:reasons.length?null:fit.p,validationObserved:matched.length?Object.fromEntries(classes.map(c=>[c,{n:observed[c],rate:observed[c]/matched.length,interval:interval(observed[c],matched.length)}])):null};
  });
- return {model:MODEL,method:'fixed-regime-frequencies-60-40-with-48h-embargo',source:input.source,generatedAt:now,referenceTime:last.end,referencePrice:last.close,expiresAt:last.end+90*60000,start:bars[0].time,end:last.end,bars:bars.length,splitAt:cut,currentGroup,groupName:groupNames[currentGroup]||'غير مكتملة',neutralThresholdPct:.05,technicalOnly:true,liveValidated:false,horizons};
+ return {model:MODEL,method:'fixed-regime-frequencies-60-40-with-48h-embargo',source:input.source,generatedAt:now,referenceTime:last.end,referencePrice:last.close,expiresAt:last.end+90*60000,start:bars[0].time,end:last.end,bars:bars.length,splitAt:cut,currentGroup,groupName:groupNames[currentGroup]||'غير مكتملة',neutralThresholdPct:.05,featureBars:48,featureSpanHours:(last.end-bars[Math.max(0,bars.length-48)].time)/H,featureMissingHours:(last.end-bars[Math.max(0,bars.length-48)].time)/H-48,technicalOnly:true,liveValidated:false,horizons};
 }
 module.exports={run,regime,MODEL,MIN_TRAIN,MIN_TEST,MIN_GROUP_TEST};
