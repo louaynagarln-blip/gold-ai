@@ -1,6 +1,6 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.GoldDataQuality=api;})(typeof self!=='undefined'?self:this,function(){
  'use strict';
- const VERSION='4.8.0',INTERVALS={M1:60000,M5:300000,M15:900000};
+ const VERSION='4.9.0',INTERVALS={M1:60000,M5:300000,M15:900000};
  const positive=x=>typeof x!=='boolean'&&x!==null&&x!==''&&Number.isFinite(Number(x))&&Number(x)>0;
  function timestamp(value){
   if(typeof value==='string'){value=value.trim();if(/^\d+(\.\d+)?$/.test(value))value=Number(value);else if(/^\d{4}-\d\d-\d\dT.*(?:Z|[+-]\d\d:\d\d)$/.test(value))return Number.isFinite(Date.parse(value))?Date.parse(value):null;else return null;}
