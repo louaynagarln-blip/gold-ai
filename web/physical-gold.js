@@ -35,7 +35,7 @@
  }
  // Cash comparisons only: never infer a future jeweller quote from spot forecasts.
  function purchase(raw,spot){
-  const p=piece({...raw,id:'purchase_plan',netBid:null,bidAt:null}),target=number(raw.targetProfit);
+  const p=piece({...raw,id:'purchase_plan',netBid:null,bidAt:null}),target=number(raw.targetProfit),owned=raw.mode==='owned';
   if(p.unitCost<=0)throw Error('سعر الشراء يجب أن يكون أكبر من صفر');
   if(target===null||target<0||target>1e9||Math.abs(target*100-Math.round(target*100))>1e-5)throw Error('أدخل الربح المستهدف لكل قطعة بالدولار، أو صفر للتعادل');
   const askCents=Math.round(p.unitCost*100),targetCents=Math.round(target*100),totalTarget=(askCents+targetCents)*p.quantity;
@@ -43,7 +43,7 @@
   const bid=number(raw.resaleBid);
   if(raw.resaleBid!==undefined&&raw.resaleBid!==null&&raw.resaleBid!==''&&(!(bid>0&&bid<=1e9)||Math.abs(bid*100-Math.round(bid*100))>1e-5))throw Error('أدخل صافي عرض إعادة البيع الصحيح، أو اتركه فارغاً');
   const purePerPiece=p.grams*p.purityValue/(p.purityMode==='karat'?24:1000),reference=number(spot)>0?purePerPiece/TROY_OUNCE*number(spot):null,bidCents=bid===null?null:Math.round(bid*100),delta=bidCents===null?null:bidCents-askCents;
-  return {purePerPiece,pureGrams:purePerPiece*p.quantity,quantity:p.quantity,totalCost:askCents*p.quantity/100,referencePerPiece:reference,premiumPerPiece:reference===null?null:p.unitCost-reference,premiumPct:reference===null?null:(p.unitCost/reference-1)*100,netResale:bidCents===null?null:bidCents*p.quantity/100,immediateDifference:delta===null?null:delta*p.quantity/100,immediateDifferencePct:delta===null?null:delta/askCents*100,breakEvenPerPiece:p.unitCost,targetPerPiece:(askCents+targetCents)/100,targetTotal:totalTarget/100,requiredResaleRisePct:bidCents===null?null:((askCents+targetCents)/bidCents-1)*100,invertedQuote:bidCents!==null&&bidCents>askCents};
+  return {mode:owned?'owned':'new',purePerPiece,pureGrams:purePerPiece*p.quantity,quantity:p.quantity,totalCost:askCents*p.quantity/100,referencePerPiece:reference,premiumPerPiece:reference===null?null:p.unitCost-reference,premiumPct:reference===null?null:(p.unitCost/reference-1)*100,netResale:bidCents===null?null:bidCents*p.quantity/100,immediateDifference:delta===null?null:delta*p.quantity/100,immediateDifferencePct:delta===null?null:delta/askCents*100,breakEvenPerPiece:p.unitCost,targetPerPiece:(askCents+targetCents)/100,targetTotal:totalTarget/100,requiredResaleRisePct:bidCents===null?null:((askCents+targetCents)/bidCents-1)*100,invertedQuote:!owned&&bidCents!==null&&bidCents>askCents};
  }
  // Converts model scenarios to contained-metal value only, never a dealer bid or profit.
  function impact(raw,forecast){
@@ -52,7 +52,7 @@
   const ounces=v.pureGrams/TROY_OUNCE,spread=v.immediateDifference===null?null:Math.max(0,-v.immediateDifference);
   const horizons=[24,48].map(hours=>{const h=forecast['h'+hours];if(!h||![h.low,h.high].every(n=>typeof n==='number'&&Number.isFinite(n)&&n>0)||h.low>h.high)throw Error('نطاق التوقع غير صالح');
    const low=h.low*ounces,high=h.high*ounces,base=reference*ounces,lowChange=low-base,highChange=high-base;
-   return {hours,low,high,base,lowChange,highChange,spread,comparison:spread===null?'NO_BID':v.invertedQuote?'CHECK_QUOTES':spread===0?'NO_GAP':Math.max(0,highChange)<spread?'BELOW_GAP':'NOT_PROOF'};
+   return {hours,low,high,base,lowChange,highChange,spread,comparison:v.mode==='owned'?'OWNED':spread===null?'NO_BID':v.invertedQuote?'CHECK_QUOTES':spread===0?'NO_GAP':Math.max(0,highChange)<spread?'BELOW_GAP':'NOT_PROOF'};
   });
   return {quantity:v.quantity,pureGrams:v.pureGrams,reference,referenceTime:forecast.referenceTime,horizons,metalOnly:true};
  }
