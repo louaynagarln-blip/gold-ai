@@ -25,10 +25,19 @@ function context(input,now=Date.now()){
  const bars=checked.bars.slice(-96),low=Math.min(...bars.map(b=>b.low)),high=Math.max(...bars.map(b=>b.high)),first=bars[0],last=bars.at(-1);
  return {ready:true,source:checked.source,referenceTime:last.end,startTime:first.time,referencePrice:last.close,low,high,changePct:(last.close/first.open-1)*100,positionPct:high===low?null:(last.close-low)/(high-low)*100};
 }
+function evidence(input,now=Date.now()){
+ const checked=Q.candles({symbol:input?.symbol,source:input?.source,timeframe:'M15',candles:input?.bars||[]},'M15',now,96);
+ if(!checked.ready)return {ready:false,reasonAr:checked.reasonAr};
+ const bars=checked.bars,closes=bars.map(b=>b.close),last=bars.at(-1),e9=ema(closes,9),e21=ema(closes,21),r=rsi(closes,14);
+ const ranges=bars.slice(1).map((b,i)=>Math.max(b.high-b.low,Math.abs(b.high-bars[i].close),Math.abs(b.low-bars[i].close)));
+ let atr=mean(ranges.slice(0,14));for(const tr of ranges.slice(14))atr=(atr*13+tr)/14;
+ const prior=bars.slice(-97,-1),upper=Math.max(...prior.map(b=>b.high)),lower=Math.min(...prior.map(b=>b.low));
+ return {ready:true,source:checked.source,referenceTime:last.end,close:last.close,e9,e21,rsi:r,atr,upper,lower,trend:Math.abs(e9-e21)<=last.close*1e-10?'FLAT':e9>e21?'UP':'DOWN',breakout:last.close>upper?'UP':last.close<lower?'DOWN':'INSIDE',points:bars.slice(-96).map(b=>({time:b.end,price:b.close}))};
+}
 function validReference(forecast,input,now=Date.now()){
  const checked=Q.candles({symbol:input?.symbol,source:input?.source,timeframe:'M15',candles:input?.bars||[]},'M15',now);
  const age=now-Date.parse(forecast?.generatedAt);
  return Boolean(checked.ready&&forecast?.ready&&forecast.modelVersion===J.MODEL&&forecast.referenceTime===checked.bars.at(-1).end&&age>=0&&age<30*60000);
 }
-return {analyze,context,validReference,evaluate:J.evaluate,technicalScore,dailyVolatility};
+return {analyze,context,evidence,validReference,evaluate:J.evaluate,technicalScore,dailyVolatility};
 });
